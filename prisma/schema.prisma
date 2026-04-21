@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Category {
+  tech
+  ia
+  cyber
+}
+
+model Article {
+  id           String    @id @default(uuid())
+  title        String
+  url          String    @unique
+  slug         String    @unique
+  sourceName   String
+  sourceId     String
+  source       Source    @relation(fields: [sourceId], references: [id])
+  category     Category
+  publishedAt  DateTime
+  ingestedAt   DateTime  @default(now())
+  contentRaw   String?
+  contentClean String?
+  summary      String?
+  summarizedAt DateTime?
+  readCount    Int       @default(0)
+
+  @@index([category, publishedAt(sort: Desc)])
+  @@index([publishedAt(sort: Desc)])
+  @@index([sourceId])
+}
+
+model Source {
+  id          String    @id @default(uuid())
+  name        String
+  rssUrl      String    @unique
+  category    Category
+  active      Boolean   @default(true)
+  lastFetched DateTime?
+  articles    Article[]
+}
+
+model Board {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isDefault   Boolean  @default(false)
+  sourceIds   String[]
+}
+
+model SavedArticle {
+  id        String   @id @default(uuid())
+  articleId String
+  savedAt   DateTime @default(now())
+
+  @@index([savedAt(sort: Desc)])
+}
+
+model DigestSubscriber {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  subscribedAt DateTime @default(now())
+  active       Boolean  @default(true)
+}
