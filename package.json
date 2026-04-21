@@ -17,6 +17,7 @@
     "ioredis": "^5.10.1",
     "jsdom": "^29.0.2",
     "next": "16.2.4",
+    "prisma": "^7.7.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.12.2",
@@ -30,7 +31,6 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
-    "prisma": "^7.7.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
