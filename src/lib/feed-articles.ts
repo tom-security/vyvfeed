@@ -1,5 +1,6 @@
 import type { Article, Category } from "@prisma/client";
 import {
+  getMockArticleBySlug,
   getMockArticlesByCategory,
   getMockArticlesSorted,
 } from "./mock-articles";
@@ -85,4 +86,19 @@ export async function getFeedArticles(
   return category
     ? getMockArticlesByCategory(category)
     : getMockArticlesSorted();
+}
+
+export async function getArticleBySlug(
+  slug: string,
+): Promise<MockArticle | null> {
+  if (process.env.DATABASE_URL) {
+    try {
+      const { prisma } = await import("./prisma");
+      const row = await prisma.article.findUnique({ where: { slug } });
+      if (row) return mapArticle(row);
+    } catch {
+      // DB unavailable — fall through to mock lookup
+    }
+  }
+  return getMockArticleBySlug(slug) ?? null;
 }

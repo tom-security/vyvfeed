@@ -1,14 +1,13 @@
 import { notFound } from "next/navigation";
 import { ReaderView } from "@/components/reader/ReaderView";
-import { getMockArticleBySlug, MOCK_ARTICLES } from "@/lib/mock-articles";
+import { getArticleBySlug } from "@/lib/feed-articles";
 
-export function generateStaticParams() {
-  return MOCK_ARTICLES.map((a) => ({ slug: a.slug }));
-}
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 export async function generateMetadata(props: PageProps<"/article/[slug]">) {
   const { slug } = await props.params;
-  const article = getMockArticleBySlug(slug);
+  const article = await getArticleBySlug(slug);
   if (!article) return { title: "Article introuvable" };
   return {
     title: article.title,
@@ -23,7 +22,7 @@ export async function generateMetadata(props: PageProps<"/article/[slug]">) {
 
 export default async function ArticlePage(props: PageProps<"/article/[slug]">) {
   const { slug } = await props.params;
-  const article = getMockArticleBySlug(slug);
+  const article = await getArticleBySlug(slug);
   if (!article) notFound();
   return <ReaderView article={article} />;
 }
