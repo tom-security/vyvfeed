@@ -7,14 +7,14 @@ type Props = {
 
 export function FeedHeader({ eyebrow, title, description, count }: Props) {
   return (
-    <header className="flex flex-col gap-2 border-b border-vyvfeed-border px-8 pb-6 pt-10">
+    <header className="flex flex-col gap-2 border-b border-vyvfeed-border px-4 pb-5 pt-8 sm:px-8 sm:pb-6 sm:pt-10">
       {eyebrow ? (
         <span className="text-[11px] font-semibold uppercase tracking-wider text-vyvfeed-accent">
           {eyebrow}
         </span>
       ) : null}
       <div className="flex items-end justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight text-vyvfeed-text">
+        <h1 className="text-2xl font-bold tracking-tight text-vyvfeed-text sm:text-3xl">
           {title}
         </h1>
         {typeof count === "number" ? (

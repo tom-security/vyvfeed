@@ -1,15 +1,13 @@
 import { FeedHeader } from "@/components/feed/FeedHeader";
 import { FeedList } from "@/components/feed/FeedList";
-import { getMockArticlesByCategory } from "@/lib/mock-articles";
+import { getFeedArticles } from "@/lib/feed-articles";
 
 export const metadata = {
   title: "Tech",
 };
 
-export default function TechPage() {
-  const articles = getMockArticlesByCategory("tech").sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+export default async function TechPage() {
+  const articles = await getFeedArticles("tech");
   return (
     <>
       <FeedHeader

@@ -1,15 +1,13 @@
 import { FeedHeader } from "@/components/feed/FeedHeader";
 import { FeedList } from "@/components/feed/FeedList";
-import { getMockArticlesByCategory } from "@/lib/mock-articles";
+import { getFeedArticles } from "@/lib/feed-articles";
 
 export const metadata = {
   title: "IA",
 };
 
-export default function IaPage() {
-  const articles = getMockArticlesByCategory("ia").sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+export default async function IaPage() {
+  const articles = await getFeedArticles("ia");
   return (
     <>
       <FeedHeader

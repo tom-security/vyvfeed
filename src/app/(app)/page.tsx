@@ -1,9 +1,9 @@
 import { FeedHeader } from "@/components/feed/FeedHeader";
 import { FeedList } from "@/components/feed/FeedList";
-import { getMockArticlesSorted } from "@/lib/mock-articles";
+import { getFeedArticles } from "@/lib/feed-articles";
 
-export default function HomePage() {
-  const articles = getMockArticlesSorted();
+export default async function HomePage() {
+  const articles = await getFeedArticles();
   return (
     <>
       <FeedHeader

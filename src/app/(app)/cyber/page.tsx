@@ -1,15 +1,13 @@
 import { FeedHeader } from "@/components/feed/FeedHeader";
 import { FeedList } from "@/components/feed/FeedList";
-import { getMockArticlesByCategory } from "@/lib/mock-articles";
+import { getFeedArticles } from "@/lib/feed-articles";
 
 export const metadata = {
   title: "Cyber",
 };
 
-export default function CyberPage() {
-  const articles = getMockArticlesByCategory("cyber").sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+export default async function CyberPage() {
+  const articles = await getFeedArticles("cyber");
   return (
     <>
       <FeedHeader

@@ -25,7 +25,7 @@ export function FeedList({ articles, emptyState }: Props) {
 
   return (
     <div className="flex flex-1">
-      <div className="flex flex-1 flex-col gap-3 px-8 py-6">
+      <div className="flex flex-1 flex-col gap-3 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         {articles.map((article) => (
           <ArticleCard
             key={article.id}

@@ -24,16 +24,20 @@ export function ArticleCard({ article, active, onHover }: Props) {
           : "border-vyvfeed-border hover:border-vyvfeed-accent/30 hover:shadow-sm"
       }`}
     >
-      <div className="flex items-center gap-3 text-xs">
-        <CategoryBadge category={article.category} />
-        <span className="font-medium text-vyvfeed-text">{article.sourceName}</span>
-        <span className="text-vyvfeed-muted">·</span>
-        <time className="text-vyvfeed-muted" dateTime={article.publishedAt}>
-          {formatShortDate(article.publishedAt)}
-        </time>
-        <span className="text-vyvfeed-muted">·</span>
-        <span className="text-vyvfeed-muted">{article.readingTimeMin} min</span>
-        <div className="ml-auto">
+      <div className="flex items-start justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <CategoryBadge category={article.category} />
+          <span className="font-medium text-vyvfeed-text">{article.sourceName}</span>
+          <span className="text-vyvfeed-muted">·</span>
+          <time className="text-vyvfeed-muted" dateTime={article.publishedAt}>
+            {formatShortDate(article.publishedAt)}
+          </time>
+          <span className="hidden text-vyvfeed-muted sm:inline">·</span>
+          <span className="hidden text-vyvfeed-muted sm:inline">
+            {article.readingTimeMin} min
+          </span>
+        </div>
+        <div className="shrink-0">
           <BookmarkButton articleId={article.id} />
         </div>
       </div>
