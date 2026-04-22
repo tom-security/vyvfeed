@@ -1,16 +1,12 @@
 name: Deploy to Coolify
-
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Coolify deployment webhook
+      - name: Trigger Coolify Deploy
         run: |
-          curl -fsSL -X POST \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "${{ secrets.COOLIFY_WEBHOOK }}"
+          curl -X GET "https://coolify.vyvox.fr/api/v1/deploy?uuid=znpe9znk04r6m35n0nokcua6&force=false" \
+          -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
