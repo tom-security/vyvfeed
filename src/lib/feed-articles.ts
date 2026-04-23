@@ -60,24 +60,47 @@ export function mapArticle(a: Article): MockArticle {
   };
 }
 
-// Fetch the N most recent articles per category in parallel, then merge
-// sorted by publishedAt desc. Prevents tech sources (which outnumber IA/Cyber
-// sources) from dominating the main feed.
+// Interleave the three category batches tech → ia → cyber → tech → ia → ...
+// Each input list must already be sorted by publishedAt desc so that slot i
+// always holds that category's i-th most recent article.
+function roundRobin(
+  tech: Article[],
+  ia: Article[],
+  cyber: Article[],
+): Article[] {
+  const result: Article[] = [];
+  const maxLen = Math.max(tech.length, ia.length, cyber.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (tech[i]) result.push(tech[i]);
+    if (ia[i]) result.push(ia[i]);
+    if (cyber[i]) result.push(cyber[i]);
+  }
+  return result;
+}
+
+// Fetch the N most recent articles per category in parallel, then interleave
+// them round-robin (tech → ia → cyber → ...). A global date sort would let
+// tech — more numerous and often more recent — dominate the top of the feed.
 export async function getBalancedArticles(): Promise<Article[]> {
   const { prisma } = await import("./prisma");
-  const entries = Object.entries(CATEGORY_QUOTAS) as [CategorySlug, number][];
-  const batches = await Promise.all(
-    entries.map(([slug, take]) =>
-      prisma.article.findMany({
-        where: { category: slug as Category },
-        orderBy: { publishedAt: "desc" },
-        take,
-      }),
-    ),
-  );
-  return batches
-    .flat()
-    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  const [tech, ia, cyber] = await Promise.all([
+    prisma.article.findMany({
+      where: { category: "tech" satisfies Category },
+      orderBy: { publishedAt: "desc" },
+      take: CATEGORY_QUOTAS.tech,
+    }),
+    prisma.article.findMany({
+      where: { category: "ia" satisfies Category },
+      orderBy: { publishedAt: "desc" },
+      take: CATEGORY_QUOTAS.ia,
+    }),
+    prisma.article.findMany({
+      where: { category: "cyber" satisfies Category },
+      orderBy: { publishedAt: "desc" },
+      take: CATEGORY_QUOTAS.cyber,
+    }),
+  ]);
+  return roundRobin(tech, ia, cyber);
 }
 
 export async function getFeedArticles(
