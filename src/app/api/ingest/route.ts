@@ -3,6 +3,7 @@ import type { Category } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { RSS_SOURCES } from "@/lib/constants";
 import { fetchAllFeeds } from "@/lib/rss";
+import { extractArticle } from "@/lib/reader";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,17 @@ export async function POST() {
           continue;
         }
 
+        // Best-effort full-content extraction via Readability.js.
+        // Never blocks ingest: any failure (network, parsing, timeout) falls
+        // through with contentClean=null, and the article is still stored.
+        let contentClean: string | null = null;
+        try {
+          const extracted = await extractArticle(item.url);
+          if (extracted?.content) contentClean = extracted.content;
+        } catch {
+          // Swallow — ingest continues without the cleaned content.
+        }
+
         await prisma.article.create({
           data: {
             title: item.title,
@@ -80,6 +92,7 @@ export async function POST() {
             category: dbSource.category,
             publishedAt: item.publishedAt,
             contentRaw: item.contentRaw,
+            contentClean,
           },
         });
         ingested++;
