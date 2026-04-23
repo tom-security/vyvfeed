@@ -12,7 +12,6 @@ import { SummaryBlock } from "./SummaryBlock";
 import { ReaderControls, type FontLevel } from "./ReaderControls";
 
 const CLEAN_MIN_CHARS = 200;
-const RAW_MAX_CHARS = 3000;
 
 const FONT_CLASSES: Record<FontLevel, string> = {
   0: "text-base",
@@ -33,26 +32,24 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-type Preview = { text: string; truncated: boolean; fromClean: boolean };
+function isUrlLike(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
 
-function buildPreview(article: MockArticle): Preview {
-  // Priority 1: Readability-cleaned content (full, no truncation)
-  const cleanText = article.contentHtml ? stripHtml(article.contentHtml) : "";
-  if (cleanText.length >= CLEAN_MIN_CHARS) {
-    return { text: cleanText, truncated: false, fromClean: true };
-  }
+function getReadableContent(article: MockArticle): string | null {
+  const html = article.contentHtml?.trim();
+  if (!html) return null;
+  const text = stripHtml(html);
+  if (text.length < CLEAN_MIN_CHARS) return null;
+  if (isUrlLike(text)) return null;
+  return text;
+}
 
-  // Priority 2: RSS contentRaw, stripped & capped at 3000 chars
-  const rawSource = article.contentRaw ?? article.excerpt ?? "";
-  const rawText = stripHtml(rawSource);
-  if (rawText.length <= RAW_MAX_CHARS) {
-    return { text: rawText, truncated: false, fromClean: false };
-  }
-  return {
-    text: `${rawText.slice(0, RAW_MAX_CHARS).trimEnd()}…`,
-    truncated: true,
-    fromClean: false,
-  };
+function toParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 export function ReaderView({ article }: Props) {
@@ -64,12 +61,8 @@ export function ReaderView({ article }: Props) {
     article.bullets.length === 3 &&
     !article.bullets[0].startsWith("Résumé en cours");
 
-  const { text: previewText, truncated } = buildPreview(article);
-  // Preserve paragraph structure when rendering plain-text preview
-  const previewParagraphs = previewText
-    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const readableText = getReadableContent(article);
+  const paragraphs = readableText ? toParagraphs(readableText) : [];
 
   const pageBg = dark
     ? "bg-[#0F172A] text-[#E2E8F0]"
@@ -78,7 +71,9 @@ export function ReaderView({ article }: Props) {
   const muted = dark ? "text-white/60" : "text-vyvfeed-muted";
   const title = dark ? "text-white" : "text-vyvfeed-text";
   const body = dark ? "text-[#E2E8F0]" : "text-vyvfeed-text";
-  const fadeTo = dark ? "to-[#0F172A]" : "to-vyvfeed-bg";
+  const emptySurface = dark
+    ? "border-white/10 bg-white/[0.03] text-white/70"
+    : "border-vyvfeed-border bg-vyvfeed-surface text-vyvfeed-muted";
   const ctaBtn = dark
     ? "bg-vyvfeed-accent text-white hover:bg-sky-400"
     : "bg-vyvfeed-accent text-white hover:bg-sky-600";
@@ -124,23 +119,27 @@ export function ReaderView({ article }: Props) {
             <SummaryBlock bullets={article.bullets} dark={dark} />
           ) : null}
 
-          {previewText ? (
-            <div className="relative mt-8">
+          {readableText ? (
+            <div className="mt-8">
               <div
                 className={`font-serif leading-[1.75] ${FONT_CLASSES[level]} ${body} space-y-5`}
               >
-                {previewParagraphs.length > 0
-                  ? previewParagraphs.map((para, i) => <p key={i}>{para}</p>)
-                  : <p>{previewText}</p>}
+                {paragraphs.length > 0
+                  ? paragraphs.map((para, i) => <p key={i}>{para}</p>)
+                  : <p>{readableText}</p>}
               </div>
-              {truncated ? (
-                <div
-                  aria-hidden="true"
-                  className={`pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent ${fadeTo}`}
-                />
-              ) : null}
             </div>
-          ) : null}
+          ) : (
+            <div
+              className={`mt-8 flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center ${emptySurface}`}
+            >
+              <UnavailableIcon />
+              <p className="max-w-md text-sm">
+                Le contenu complet de cet article n&apos;est pas disponible en
+                lecture immersive.
+              </p>
+            </div>
+          )}
 
           <div className="mt-10 flex justify-center">
             <a
@@ -192,5 +191,27 @@ export function ReaderView({ article }: Props) {
         onToggleDark={() => setDark((v) => !v)}
       />
     </div>
+  );
+}
+
+function UnavailableIcon() {
+  return (
+    <svg
+      width={28}
+      height={28}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="opacity-70"
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h1.5" />
+      <path d="M9 17h6" />
+    </svg>
   );
 }

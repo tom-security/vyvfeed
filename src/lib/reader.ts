@@ -8,6 +8,10 @@ export type ExtractedArticle = {
   excerpt: string | null;
 };
 
+function isUrlLike(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
 export async function extractArticle(
   url: string,
   timeoutMs = 8_000,
@@ -30,17 +34,30 @@ export async function extractArticle(
     if (!res.ok) return null;
 
     const html = await res.text();
+    if (!html || html.trim().length === 0) return null;
+
     const dom = new JSDOM(html, { url });
     const reader = new Readability(dom.window.document);
     const parsed = reader.parse();
     if (!parsed) return null;
 
+    const content = (parsed.content ?? "").trim();
+    const textContent = (parsed.textContent ?? "").trim();
+
+    // Guard against degenerate extractions: empty result, or a bare URL that
+    // Readability sometimes returns when the page has nothing but a link.
+    if (!content || !textContent) return null;
+    if (isUrlLike(textContent)) return null;
+
     return {
       title: parsed.title ?? null,
-      content: parsed.content ?? null,
-      textContent: parsed.textContent ?? null,
+      content,
+      textContent,
       excerpt: parsed.excerpt ?? null,
     };
+  } catch {
+    // Fetch aborted, JSDOM/Readability threw, or malformed HTML — caller sees null.
+    return null;
   } finally {
     clearTimeout(timer);
   }

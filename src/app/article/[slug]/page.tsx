@@ -9,6 +9,15 @@ import { summarizeArticle } from "@/lib/summarize";
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
+function isUsableContent(content: string | null | undefined): boolean {
+  if (!content) return false;
+  const trimmed = content.trim();
+  if (trimmed.length === 0) return false;
+  // Reject degenerate content that's just a URL — never shown as article body.
+  if (/^https?:\/\/\S+$/i.test(trimmed)) return false;
+  return true;
+}
+
 const loadArticle = cache(async (slug: string): Promise<MockArticle | null> => {
   if (process.env.DATABASE_URL) {
     try {
@@ -16,24 +25,30 @@ const loadArticle = cache(async (slug: string): Promise<MockArticle | null> => {
       const row = await prisma.article.findUnique({ where: { slug } });
       if (!row) return null;
 
-      const content = row.contentClean ?? row.contentRaw ?? "";
-      if (!row.summary && content.trim()) {
+      // Guard: any non-usable contentClean (null, empty, URL-only) is scrubbed
+      // before mapping, so ReaderView never has to guess.
+      const safeRow = isUsableContent(row.contentClean)
+        ? row
+        : { ...row, contentClean: null };
+
+      const summaryInput = safeRow.contentClean ?? safeRow.contentRaw ?? "";
+      if (!safeRow.summary && summaryInput.trim()) {
         try {
-          const bullets = await summarizeArticle(content);
+          const bullets = await summarizeArticle(summaryInput);
           const updated = await prisma.article.update({
-            where: { id: row.id },
+            where: { id: safeRow.id },
             data: {
               summary: JSON.stringify({ bullets }),
               summarizedAt: new Date(),
             },
           });
-          return mapArticle(updated);
+          return mapArticle({ ...updated, contentClean: safeRow.contentClean });
         } catch {
           // Summarization failed — fall through to article without summary
         }
       }
 
-      return mapArticle(row);
+      return mapArticle(safeRow);
     } catch {
       // DB unavailable — fall through to mock lookup
     }
