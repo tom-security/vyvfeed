@@ -96,5 +96,19 @@ export async function POST() {
     });
   }
 
+  // Hard cap: BDD keeps only the 50 most recent articles (news has no value past 24h)
+  const total = await prisma.article.count();
+  if (total > 50) {
+    const excess = total - 50;
+    const oldest = await prisma.article.findMany({
+      orderBy: { publishedAt: "asc" },
+      take: excess,
+      select: { id: true },
+    });
+    await prisma.article.deleteMany({
+      where: { id: { in: oldest.map((a) => a.id) } },
+    });
+  }
+
   return NextResponse.json({ ingested, skipped, errors });
 }
