@@ -12,10 +12,33 @@ function isUrlLike(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
 }
 
+function isHackerNewsUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "news.ycombinator.com" || host.endsWith(".ycombinator.com");
+  } catch {
+    return false;
+  }
+}
+
+function looksLikeHnMetadata(text: string): boolean {
+  // HN RSS items wrap all the metadata in one block — if all three markers
+  // are present, this is never a real article.
+  return (
+    /Article URL:/i.test(text) &&
+    /Comments URL:/i.test(text) &&
+    /Points:/i.test(text)
+  );
+}
+
 export async function extractArticle(
   url: string,
   timeoutMs = 8_000,
 ): Promise<ExtractedArticle | null> {
+  // HN comments page: Readability would either fail or return the thread
+  // structure — never the underlying article. Bail out before hitting network.
+  if (isHackerNewsUrl(url)) return null;
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -44,10 +67,11 @@ export async function extractArticle(
     const content = (parsed.content ?? "").trim();
     const textContent = (parsed.textContent ?? "").trim();
 
-    // Guard against degenerate extractions: empty result, or a bare URL that
-    // Readability sometimes returns when the page has nothing but a link.
+    // Guard against degenerate extractions: empty result, bare URL, or leaked
+    // HN metadata block if a feed relayed HN items through another domain.
     if (!content || !textContent) return null;
     if (isUrlLike(textContent)) return null;
+    if (looksLikeHnMetadata(textContent)) return null;
 
     return {
       title: parsed.title ?? null,
