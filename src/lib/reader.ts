@@ -10,7 +10,7 @@ export type ExtractedArticle = {
 
 export async function extractArticle(
   url: string,
-  timeoutMs = 10_000,
+  timeoutMs = 8_000,
 ): Promise<ExtractedArticle | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -18,7 +18,12 @@ export async function extractArticle(
   try {
     const res = await fetch(url, {
       headers: {
-        "user-agent": "VYVFEEDBot/1.0 (+https://vyvfeed.vyvox.fr)",
+        // Some news sites (NYT, Wired, MIT TR) return 403/empty to non-browser UAs.
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
       },
       signal: controller.signal,
     });

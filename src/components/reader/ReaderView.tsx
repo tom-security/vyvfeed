@@ -11,7 +11,8 @@ import { formatFullDate } from "@/lib/format";
 import { SummaryBlock } from "./SummaryBlock";
 import { ReaderControls, type FontLevel } from "./ReaderControls";
 
-const PREVIEW_MAX_CHARS = 2000;
+const CLEAN_MIN_CHARS = 200;
+const RAW_MAX_CHARS = 3000;
 
 const FONT_CLASSES: Record<FontLevel, string> = {
   0: "text-base",
@@ -32,18 +33,25 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function buildPreview(article: MockArticle): {
-  text: string;
-  truncated: boolean;
-} {
-  const source = article.contentHtml?.trim() || article.excerpt || "";
-  const text = stripHtml(source);
-  if (text.length <= PREVIEW_MAX_CHARS) {
-    return { text, truncated: false };
+type Preview = { text: string; truncated: boolean; fromClean: boolean };
+
+function buildPreview(article: MockArticle): Preview {
+  // Priority 1: Readability-cleaned content (full, no truncation)
+  const cleanText = article.contentHtml ? stripHtml(article.contentHtml) : "";
+  if (cleanText.length >= CLEAN_MIN_CHARS) {
+    return { text: cleanText, truncated: false, fromClean: true };
+  }
+
+  // Priority 2: RSS contentRaw, stripped & capped at 3000 chars
+  const rawSource = article.contentRaw ?? article.excerpt ?? "";
+  const rawText = stripHtml(rawSource);
+  if (rawText.length <= RAW_MAX_CHARS) {
+    return { text: rawText, truncated: false, fromClean: false };
   }
   return {
-    text: `${text.slice(0, PREVIEW_MAX_CHARS).trimEnd()}…`,
+    text: `${rawText.slice(0, RAW_MAX_CHARS).trimEnd()}…`,
     truncated: true,
+    fromClean: false,
   };
 }
 
@@ -57,6 +65,11 @@ export function ReaderView({ article }: Props) {
     !article.bullets[0].startsWith("Résumé en cours");
 
   const { text: previewText, truncated } = buildPreview(article);
+  // Preserve paragraph structure when rendering plain-text preview
+  const previewParagraphs = previewText
+    .split(/\n{2,}|(?<=[.!?])\s{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   const pageBg = dark
     ? "bg-[#0F172A] text-[#E2E8F0]"
@@ -113,11 +126,13 @@ export function ReaderView({ article }: Props) {
 
           {previewText ? (
             <div className="relative mt-8">
-              <p
-                className={`font-serif leading-[1.75] ${FONT_CLASSES[level]} ${body}`}
+              <div
+                className={`font-serif leading-[1.75] ${FONT_CLASSES[level]} ${body} space-y-5`}
               >
-                {previewText}
-              </p>
+                {previewParagraphs.length > 0
+                  ? previewParagraphs.map((para, i) => <p key={i}>{para}</p>)
+                  : <p>{previewText}</p>}
+              </div>
               {truncated ? (
                 <div
                   aria-hidden="true"

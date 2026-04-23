@@ -12,6 +12,7 @@ export type MockArticle = {
   bullets: [string, string, string];
   excerpt: string;
   contentHtml: string;
+  contentRaw?: string | null;
 };
 
 export const MOCK_ARTICLES: MockArticle[] = [

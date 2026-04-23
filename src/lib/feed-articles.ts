@@ -56,6 +56,7 @@ export function mapArticle(a: Article): MockArticle {
     bullets: parseBullets(a.summary),
     excerpt: extractExcerpt(a.contentRaw),
     contentHtml: a.contentClean ?? "",
+    contentRaw: a.contentRaw,
   };
 }
 

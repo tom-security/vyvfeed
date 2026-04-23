@@ -77,7 +77,14 @@ export async function POST() {
         let contentClean: string | null = null;
         try {
           const extracted = await extractArticle(item.url);
-          if (extracted?.content) contentClean = extracted.content;
+          if (extracted?.content) {
+            const textLen = (extracted.textContent ?? "").trim().length;
+            // Below 200 chars of plain text, the extraction is unusable
+            // (paywall stub, cookie banner, JS-only page, empty shell).
+            if (textLen >= 200) {
+              contentClean = extracted.content;
+            }
+          }
         } catch {
           // Swallow — ingest continues without the cleaned content.
         }
@@ -123,5 +130,18 @@ export async function POST() {
     });
   }
 
-  return NextResponse.json({ ingested, skipped, errors });
+  // TEMP DIAGNOSTIC: count how many stored articles have Readability content
+  // vs only the RSS snippet. Remove once extraction rate is validated.
+  const withClean = await prisma.article.count({
+    where: { contentClean: { not: null } },
+  });
+  const totalAfter = await prisma.article.count();
+  const diagnostic = {
+    articlesTotal: totalAfter,
+    articlesWithContentClean: withClean,
+    articlesWithoutContentClean: totalAfter - withClean,
+  };
+  console.log("[ingest] content extraction stats:", diagnostic);
+
+  return NextResponse.json({ ingested, skipped, errors, diagnostic });
 }
