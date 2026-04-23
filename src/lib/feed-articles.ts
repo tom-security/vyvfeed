@@ -5,7 +5,7 @@ import {
   getMockArticlesSorted,
 } from "./mock-articles";
 import type { MockArticle } from "./mock-articles";
-import type { CategorySlug } from "./constants";
+import { CATEGORY_QUOTAS, type CategorySlug } from "./constants";
 
 function estimateReadingTime(content: string | null): number {
   if (!content) return 3;
@@ -60,6 +60,26 @@ export function mapArticle(a: Article): MockArticle {
   };
 }
 
+// Fetch the N most recent articles per category in parallel, then merge
+// sorted by publishedAt desc. Prevents tech sources (which outnumber IA/Cyber
+// sources) from dominating the main feed.
+export async function getBalancedArticles(): Promise<Article[]> {
+  const { prisma } = await import("./prisma");
+  const entries = Object.entries(CATEGORY_QUOTAS) as [CategorySlug, number][];
+  const batches = await Promise.all(
+    entries.map(([slug, take]) =>
+      prisma.article.findMany({
+        where: { category: slug as Category },
+        orderBy: { publishedAt: "desc" },
+        take,
+      }),
+    ),
+  );
+  return batches
+    .flat()
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+}
+
 export async function getFeedArticles(
   category?: CategorySlug,
 ): Promise<MockArticle[]> {
@@ -72,14 +92,18 @@ export async function getFeedArticles(
   try {
     // Dynamic import prevents PrismaClient instantiation at module-eval time
     // when DATABASE_URL is present but DB is unreachable (e.g. build without postgres).
-    const { prisma } = await import("./prisma");
-    const where = category ? { category: category as Category } : {};
-    const rows = await prisma.article.findMany({
-      where,
-      orderBy: { publishedAt: "desc" },
-      take: 50,
-    });
-    if (rows.length > 0) return rows.map(mapArticle);
+    if (category) {
+      const { prisma } = await import("./prisma");
+      const rows = await prisma.article.findMany({
+        where: { category: category as Category },
+        orderBy: { publishedAt: "desc" },
+        take: 50,
+      });
+      if (rows.length > 0) return rows.map(mapArticle);
+    } else {
+      const rows = await getBalancedArticles();
+      if (rows.length > 0) return rows.map(mapArticle);
+    }
   } catch {
     // DB unavailable — fall through to mock data
   }

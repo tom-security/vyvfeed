@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import type { Category } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { RSS_SOURCES } from "@/lib/constants";
+import {
+  CATEGORY_QUOTAS,
+  RSS_SOURCES,
+  type CategorySlug,
+} from "@/lib/constants";
 import { fetchAllFeeds } from "@/lib/rss";
 import { extractArticle } from "@/lib/reader";
 
@@ -116,18 +120,25 @@ export async function POST() {
     });
   }
 
-  // Hard cap: BDD keeps only the 50 most recent articles (news has no value past 24h)
-  const total = await prisma.article.count();
-  if (total > 50) {
-    const excess = total - 50;
-    const oldest = await prisma.article.findMany({
-      orderBy: { publishedAt: "asc" },
-      take: excess,
+  // Per-category purge: keep the N most recent per slot (17/17/16).
+  // A global cap would let tech overflow and starve IA/Cyber from the feed,
+  // so we enforce the balance at the storage layer itself.
+  const quotaEntries = Object.entries(CATEGORY_QUOTAS) as [
+    CategorySlug,
+    number,
+  ][];
+  for (const [slug, keep] of quotaEntries) {
+    const toDelete = await prisma.article.findMany({
+      where: { category: slug as Category },
+      orderBy: { publishedAt: "desc" },
+      skip: keep,
       select: { id: true },
     });
-    await prisma.article.deleteMany({
-      where: { id: { in: oldest.map((a) => a.id) } },
-    });
+    if (toDelete.length > 0) {
+      await prisma.article.deleteMany({
+        where: { id: { in: toDelete.map((a) => a.id) } },
+      });
+    }
   }
 
   // TEMP DIAGNOSTIC: count how many stored articles have Readability content

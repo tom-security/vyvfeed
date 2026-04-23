@@ -32,3 +32,12 @@ export const CATEGORIES: {
 export const SUMMARY_CACHE_TTL_SECONDS = 60 * 60 * 24;
 export const DIGEST_ITEM_COUNT = 10;
 export const SITE_URL = "https://vyvfeed.vyvox.fr";
+
+// Per-category quotas for the balanced feed and for the DB hard cap.
+// Tech sources dominate the RSS list, so without quotas IA and Cyber would
+// get crushed out of the feed. Sum must equal 50 (the global BDD ceiling).
+export const CATEGORY_QUOTAS: Record<CategorySlug, number> = {
+  tech: 17,
+  ia: 17,
+  cyber: 16,
+};
